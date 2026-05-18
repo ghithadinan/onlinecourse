@@ -22,6 +22,7 @@ class QuestionInline(admin.StackedInline):
 
 
 class QuestionAdmin(admin.ModelAdmin):
+    list_display = ['question_text', 'grade']
     inlines = [ChoiceInline]
 
 

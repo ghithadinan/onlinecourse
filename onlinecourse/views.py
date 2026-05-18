@@ -10,11 +10,9 @@ def submit(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
 
     # Ambil enrollment pertama untuk course ini
-    # (cukup untuk memenuhi kebutuhan project)
     enrollment = Enrollment.objects.filter(course=course).first()
 
     if enrollment is None:
-        # Jika belum ada enrollment, redirect kembali ke course
         return redirect('onlinecourse:course_details', course_id=course.id)
 
     # Ambil semua choice yang dipilih user
@@ -48,22 +46,38 @@ def show_exam_result(request, course_id, submission_id):
     course = get_object_or_404(Course, pk=course_id)
     submission = get_object_or_404(Submission, pk=submission_id)
 
-    selected_choices = submission.choices.all()
+    # ID pilihan yang dipilih user
+    selected_ids = submission.choices.values_list('id', flat=True)
 
-    # Hitung skor sederhana
-    total_questions = course.questions.count()
-    correct_answers = selected_choices.filter(is_correct=True).count()
+    # Hitung total nilai yang diperoleh dan total nilai maksimal
+    total_score = 0
+    possible_score = 0
 
-    if total_questions > 0:
-        grade = int((correct_answers / total_questions) * 100)
-    else:
-        grade = 0
+    for question in course.questions.all():
+        possible_score += question.grade
+
+        # Semua choice yang benar untuk question ini
+        correct_ids = set(
+            question.choices.filter(is_correct=True)
+            .values_list('id', flat=True)
+        )
+
+        # Semua choice yang dipilih user untuk question ini
+        selected_for_question = set(
+            submission.choices.filter(question=question)
+            .values_list('id', flat=True)
+        )
+
+        # Nilai hanya diberikan jika pilihan user persis sama
+        # dengan jawaban yang benar
+        if correct_ids == selected_for_question:
+            total_score += question.grade
 
     context = {
         'course': course,
-        'submission': submission,
-        'selected_choices': selected_choices,
-        'grade': grade,
+        'selected_ids': selected_ids,
+        'grade': total_score,
+        'possible': possible_score,
     }
 
     return render(
